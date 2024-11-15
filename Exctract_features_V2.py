@@ -50,15 +50,15 @@ def read_files(filepath):
     else:
         return None  # Retourne None si les listes sont vides
 
-#test = read_files("/home/jhodi/Documents/Rstudio/Python/MLP_sec_str/513_distribute/1aazb-1-DOMAK.all")
+# test = read_files("/net/cremi/javizara/Downloads/PhilBi/513_distribute/1adeb-2-AUTO.1.all")
 
 # One Hot encoding
 def DSSP_ohe(str_):
-    if list(set(str_)) == ['H']:
+    if str_ == 'H':
         return 0
-    elif list(set(str_)) == ['C']:
+    elif str_ == 'C':
         return 1
-    elif list(set(str_)) == ['E']:
+    elif str_ ==  'E':
         return 2
 
 def aa_ohe(aa):
@@ -100,7 +100,17 @@ def RES_ohe(column):
 #test = RES_ohe(df['RES'])
 
 def clear(df, column):
-    return df[df['DSSP'].apply(lambda x: len(set(x)) == 1)]
+    # Remplacer les listes par l'élément du milieu
+
+    
+    df[column] = df[column].apply(lambda x: x[len(x) // 2] if isinstance(x, list) and len(x) > 0 else x)
+    
+    return df
+
+def midle(dssp):
+    for seq in dssp:
+        l = seq[len(seq)//2]
+        return l
 
 def create_dataset(pwd):
     RES = []
@@ -124,7 +134,7 @@ def create_dataset(pwd):
         })
     
     # Garder que les séquence composant une seule et unique structure 
-    data = clear(data, 'DSSP')
+    data['DSSP'] = data['DSSP'].apply(midle)
     
     # DSSP OneHot Encoding
     data['DSSP'] = data['DSSP'].apply(DSSP_ohe)
