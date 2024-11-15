@@ -54,11 +54,11 @@ def read_files(filepath):
 
 # One Hot encoding
 def DSSP_ohe(str_):
-    if str_ == 'H':
+    if str_ in 'HG':
         return 0
-    elif str_ == 'C':
+    elif str_ in 'EB':
         return 1
-    elif str_ ==  'E':
+    else:
         return 2
 
 def aa_ohe(aa):
