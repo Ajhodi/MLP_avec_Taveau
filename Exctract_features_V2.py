@@ -12,7 +12,7 @@ import pandas as pd
 
 length = 13
 
-pwd = "/home/jhodi/Documents/Rstudio/Brute/513_distribute" 
+pwd = "513_distribute" 
 
 def extract_first_(line, length, from_):
     # Enlève les virgules et retourne les premiers caractères jusqu'à la longueur spécifiée
