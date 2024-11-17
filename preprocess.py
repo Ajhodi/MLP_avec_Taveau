@@ -1,88 +1,147 @@
-# File: preprocess.py
 
 import os
 import numpy as np
 import pandas as pd
-from collections import Counter
-import pickle
 
-# Sliding window length
-WINDOW_LENGTH = 13
-data_dir = "513_distribute"  # Dataset folder
-output_file = "CB513_features.pkl"  # Output file for features and labels
+# Constants
+RESIDUES = "ARNDCQEGHILKMFPSTWYV"  # Standard amino acids
+DSSP_MAPPING = {'H': 0, 'E': 1, 'C': 2}  # Secondary structure mapping (Helix, Strand, Coil)
+WINDOW_SIZE = 13  # Sliding window size
 
-def extract_features(sequence, window_size):
-    """Generate sliding windows from a sequence."""
-    half_window = window_size // 2
-    padded_seq = ['0'] * half_window + sequence + ['0'] * half_window  # Add padding
-    windows = [padded_seq[i:i+window_size] for i in range(len(sequence))]
-    return windows
 
-def one_hot_encode_window(window, residues="ARNDCQEGHILKMFPSTWYV"):
-    """One-hot encode a sliding window."""
-    aa_to_index = {aa: i for i, aa in enumerate(residues)}
-    ohe_windows = []
-    for aa in window:
-        ohe = np.zeros(len(residues))
-        if aa in aa_to_index:
-            ohe[aa_to_index[aa]] = 1
-        ohe_windows.append(ohe)
-    return np.array(ohe_windows).flatten()
+def dssp_to_3class(dssp_seq):
+    """
+    Converts DSSP 8-class annotations into 3-class labels (H, E, C).
+    """
+    mapping = {'H': 'H', 'G': 'H', 'E': 'E', 'B': 'E', 'S': 'C', 'T': 'C', 'I': 'C', 'C': 'C'}
+    return ''.join(mapping.get(ss, 'C') for ss in dssp_seq)
 
-def DSS_translate(dssp_sequence):
-    """Translate DSSP annotations to 3-class (H, E, C)."""
-    mapping = {'H': 'H', 'G': 'H',  # Helix
-               'E': 'E', 'B': 'E',  # Strand
-               'S': 'C', 'T': 'C', 'I': 'C', 'C': 'C'}  # Coil
-    return ''.join([mapping.get(letter, 'C') for letter in dssp_sequence])
 
-def process_file(filepath, window_size):
-    """Extract features and labels for a single file."""
-    with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
-        content = f.readlines()
-
-    # Extract sequences and DSSP annotations
-    RES, DSSP = None, None
-    for line in content:
-        if line.startswith("RES:"):
-            RES = list(line.split(":")[1].strip().replace(",", ""))
-        elif line.startswith("DSSP:"):
-            DSSP = DSS_translate(line.split(":")[1].strip().replace(",", ""))
+def one_hot_encode(sequence, mapping):
+    """
+    One-hot encodes a given sequence based on a provided mapping.
     
-    # Ensure equal lengths
-    if RES is None or DSSP is None or len(RES) != len(DSSP):
-        return None, None  # Skip invalid files
+    Parameters:
+        sequence (str): Input sequence (e.g., residues or DSSP).
+        mapping (dict): Mapping of characters to indices for encoding.
+        
+    Returns:
+        np.array: One-hot encoded matrix.
+    """
+    seq_len = len(sequence)
+    num_classes = len(mapping)
+    one_hot = np.zeros((seq_len, num_classes), dtype=np.float32)
+    for i, char in enumerate(sequence):
+        if char in mapping:
+            one_hot[i, mapping[char]] = 1
+    return one_hot
 
-    # Generate sliding windows for features
-    windows = extract_features(RES, window_size)
-    X = [one_hot_encode_window(w) for w in windows]  # One-hot encode windows
 
-    # Generate labels (DSSP in 3-class format)
-    y = [0 if label == 'H' else 1 if label == 'E' else 2 for label in DSSP]
+def sliding_window_sequences(residues, dssp, window_size=13):
+    """
+    Generate sliding window subsequences from residues and DSSP labels.
+    
+    Parameters:
+        residues (str): Amino acid sequence.
+        dssp (str): DSSP secondary structure labels corresponding to the residues.
+        window_size (int): The size of the sliding window.
+        
+    Returns:
+        list: List of tuples containing subsequences of residues and their central DSSP labels.
+    """
+    half_window = window_size // 2
+    padded_residues = f"{'X' * half_window}{residues}{'X' * half_window}"  # Pad residues with 'X'
+    padded_dssp = f"{'C' * half_window}{dssp}{'C' * half_window}"  # Pad DSSP with 'C'
 
-    return np.array(X), np.array(y)
+    subsequences = []
+    for i in range(len(residues)):
+        subsequence = padded_residues[i:i + window_size]
+        label = padded_dssp[i + half_window]  # Use the center DSSP label as the label for this subsequence
+        subsequences.append((subsequence, label))
+    
+    return subsequences
 
-def preprocess_dataset(data_dir, window_size, output_file):
-    """Process all files in the dataset and save features/labels."""
-    X_list, y_list = [], []
-    for filename in os.listdir(data_dir):
-        filepath = os.path.join(data_dir, filename)
-        if os.path.isfile(filepath):
-            try:
-                X, y = process_file(filepath, window_size)
-                if X is not None and y is not None:
-                    X_list.append(X)
-                    y_list.append(y)
-            except Exception as e:
-                print(f"Error processing file {filename}: {e}")
 
-    # Combine all data and save to file
-    X = np.vstack(X_list)
-    y = np.concatenate(y_list)
-    with open(output_file, "wb") as f:
-        pickle.dump((X, y), f)
-    print(f"Preprocessed data saved to {output_file}")
+def parse_cb513_file(filepath):
+    """
+    Parses a CB513 file to extract residue and DSSP sequences.
+    
+    Parameters:
+        filepath (str): Path to the CB513 file.
+        
+    Returns:
+        dict: Contains extracted residue and DSSP sequences.
+    """
+    residues = []
+    dssp = []
+    try:
+        with open(filepath, 'r') as f:
+            for line in f:
+                if line.startswith("RES:"):
+                    residues.append(line.split(":")[1].strip().replace(",", ""))
+                elif line.startswith("DSSP:"):
+                    dssp.append(dssp_to_3class(line.split(":")[1].strip().replace(",", "")))
+        
+        # Ensure valid parsing
+        if residues and dssp:
+            return {'RES': residues[0], 'DSSP': dssp[0]}
+        else:
+            return None
+    except Exception as e:
+        print(f"Error reading file {filepath}: {e}")
+        return None
 
-# Run preprocessing
+
+def create_sliding_window_dataset(directory, window_size=13):
+    """
+    Reads all CB513 files from a directory and creates a structured dataset with sliding windows.
+    
+    Parameters:
+        directory (str): Path to the directory containing CB513 files.
+        window_size (int): The size of the sliding window.
+        
+    Returns:
+        pd.DataFrame: Dataset with sliding window subsequences and corresponding DSSP labels.
+    """
+    subsequences = []
+    for file in os.listdir(directory):
+        try:
+            filepath = os.path.join(directory, file)
+            file_data = parse_cb513_file(filepath)
+            if file_data:
+                residues = file_data['RES']
+                dssp = file_data['DSSP']
+                subsequences.extend(sliding_window_sequences(residues, dssp, window_size))
+        except Exception as e:
+            print(f"Error processing file {file}: {e}")
+    
+    # Create DataFrame with subsequences and labels
+    expanded_df = pd.DataFrame(subsequences, columns=['Subsequence', 'DSSP'])
+    return expanded_df
+
+
 if __name__ == "__main__":
-    preprocess_dataset(data_dir, WINDOW_LENGTH, output_file)
+    # Directory containing CB513 files
+    DATA_DIR = "513_distribute"  # Update with your dataset directory
+    
+    # Generate dataset
+    try:
+        dataset = create_sliding_window_dataset(DATA_DIR, window_size=WINDOW_SIZE)
+        print("Dataset created successfully!")
+        
+        # Map residues and DSSP to numerical format
+        residue_mapping = {res: idx for idx, res in enumerate(RESIDUES + "X")}  # Add 'X' for padding
+        dssp_mapping = DSSP_MAPPING
+        
+        # Convert subsequences to one-hot encoded format
+        dataset['Features'] = dataset['Subsequence'].apply(
+            lambda seq: one_hot_encode(seq, residue_mapping).flatten()
+        )
+        dataset['DSSP'] = dataset['DSSP'].map(dssp_mapping)
+        
+        # Save dataset to CSV
+        dataset.to_csv("cb513_sliding_window_dataset.csv", index=False)
+        print("Dataset saved as 'cb513_sliding_window_dataset.csv'.")
+    except Exception as e:
+        print(f"Error: {e}")
+
