@@ -9,6 +9,7 @@ Created on Sun Nov 10 22:29:42 2024
 import os
 import numpy as np
 import pandas as pd
+from imblearn.over_sampling import SMOTE
 
 length = 13
 
@@ -91,7 +92,6 @@ def RES_ohe(column):
     for seq in column:
         ohe_result = seq_ohe(seq).flatten()  # Aplatir le tableau 2D
         results.append(ohe_result)  # Ajouter le résultat à la liste
-    
     # Créer un DataFrame à partir de la liste de résultats
     values_df = pd.DataFrame(results)
     
@@ -101,16 +101,25 @@ def RES_ohe(column):
 
 def clear(df, column):
     # Remplacer les listes par l'élément du milieu
-
-    
     df[column] = df[column].apply(lambda x: x[len(x) // 2] if isinstance(x, list) and len(x) > 0 else x)
-    
     return df
 
 def midle(dssp):
     for seq in dssp:
         l = seq[len(seq)//2]
         return l
+    
+def resample(df):
+    # Séparer les labels et les features
+    X, y = df.drop(columns = 'DSSP'), df['DSSP']
+
+    # Appliquer le resampling 
+    sm = SMOTE(random_state=42)
+    X, y = sm.fit_resample(X, y)
+
+    # Recréer le dataframe
+    return pd.DataFrame(y, X)
+
 
 def create_dataset(pwd):
     RES = []
@@ -146,7 +155,10 @@ def create_dataset(pwd):
     data = data.reset_index(drop=True)
     RES_encoded = RES_encoded.reset_index(drop=True)
     
-    return pd.concat([data.drop(columns = 'RES'), RES_encoded], axis = 1).set_index(data['RES'])
+    df = pd.concat([data.drop(columns = 'RES'), RES_encoded], axis = 1).set_index(data['RES'])
+    
+    return resample(df)
     
 
 df = create_dataset(pwd)
+
