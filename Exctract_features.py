@@ -1,43 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Oct 30 22:54:08 2024
+Created on Fri Nov 22 17:41:48 2024
 
 @author: jhodi
 """
 
 import os
+import numpy as np
 import pandas as pd
+from imblearn.over_sampling import SMOTE
 
-# One Hot encoding
+length = 13
 
-Residues = "ARNDCQEGHILKMFPSTWYV"
+pwd = "513_distribute" 
 
-sequence = "MTTKEKDEFNIGS"
-
-
-
-def one_hot(seq):
-    residue_to_index = {residue: index for index, residue in enumerate(Residues)}
-    seq_df = []
-    count = {aa: 0 for aa in Residues}
-    for aa in seq:
-        encoded = [0]*len(Residues)
-        if aa in Residues:
-            count[aa] += 1
-            encoded[residue_to_index[aa]] = 1
-            seq_df.append(encoded)
-    return seq_df
-
-test = one_hot("MTTKEKDEFNIGS")
-
-# Parceur
-
-pwd = "/home/jhodi/Documents/Rstudio/Brute/513_distribute"    
-
-def extract_first_(line, length):
+def extract_first_(line, length, from_):
     # Enlève les virgules et retourne les premiers caractères jusqu'à la longueur spécifiée
-    return line.replace(',', '')[:length]
+    return line.replace(',', '')[from_ : from_ + length]
 
 def DSS_translate(str_):
     # Remplace 'H' et 'E' par elles-mêmes, toutes les autres lettres par 'C'
@@ -48,53 +28,167 @@ length = 13
 def read_files(filepath):
     RES = []
     DSSP = []
-    DSSPACC = []
-    STRIDE = []
     
     with open(filepath, 'r') as f1:
         for line in f1:
             if line.startswith('RES:'):
-                RES.append(extract_first_(line.split(":")[1], length))
+                for i in range(len(line)):
+                    res = extract_first_(line.split(":")[1], length, i)
+                    if len(res) >= length:
+                        RES.append(res)
             elif line.startswith("DSSP:"):
-                DSSP.append(extract_first_(line.split(":")[1], length))
-            elif line.startswith("DSSPACC:"):
-                DSSPACC.append(extract_first_(line.split(":")[1], length))
-            elif line.startswith("STRIDE:"):
-                STRIDE.append(extract_first_(line.split(":")[1], length))
+                for i in range(len(line)):
+                    dssp = DSS_translate(extract_first_(line.split(":")[1], length, i))
+                    if len(dssp) >= length:
+                        DSSP.append(dssp)
 
     # Vérification si les listes ne sont pas vides avant d'accéder à l'index [0]
-    if RES and DSSP and DSSPACC and STRIDE:
+    if RES and DSSP:
         return {
-            'RES': one_hot(RES[0]),  # Assurez-vous que one_hot est défini
-            'DSSP': DSS_translate(DSSP[0]),
-            'DSSPACC': DSSPACC[0],
-            'STRIDE': STRIDE[0]
+            'RES': (RES), 
+            'DSSP': DSSP
         }
     else:
         return None  # Retourne None si les listes sont vides
 
-def expand_column(dataset, column):
-    new_df = pd.DataFrame(dataset[column].tolist(), index=dataset.index)  # Crée un DataFrame à partir de la colonne 'RES'
-    new_df.columns = [f'RES_{i}' for i in range(new_df.shape[1])]  # Renomme les colonnes
-    dataset = pd.concat([dataset.drop(columns=[column]), new_df], axis=1)  # Concatène les nouveaux colonnes avec le DataFrame d'origine
-    return dataset
+# test = read_files("/net/cremi/javizara/Downloads/PhilBi/513_distribute/1adeb-2-AUTO.1.all")
 
-def create_dataset(pwd):
-    data = []  # Liste pour stocker les données de chaque fichier
-    filenames = []  # Liste pour stocker les noms de fichiers
+# One Hot encoding
+def DSSP_ohe(str_):
+    if str_ in 'HG':
+        return 0
+    elif str_ in 'EB':
+        return 1
+    else:
+        return 2
+
+def aa_ohe(aa):
+    # Initialiser le dictionnaire pour l'encodage one-hot
+    Residues = "ARNDCQEGHILKMFPSTWYV"
+    residue_ohe = {aa: 0 for aa in Residues}
+    # Remplir le dictionnaire en fonction de la séquence
+    if aa in residue_ohe:
+        residue_ohe[aa] = 1
+    else:
+        print(f"Amino acid '{aa}' not recognized and will be ignored.")
+    # Retourner un DataFrame avec une seule ligne
+    return list(residue_ohe.values())
+
+#test = aa_ohe('A')
+
+def seq_ohe(seq):
+    arr = []
+    for aa in seq:
+        arr.append(aa_ohe(aa))
+    return np.array(arr)
+
+#test = seq_ohe('TDPIADMLTAIRN')    
+
+def RES_ohe(column):
+    # Créer une liste pour stocker les résultats
+    results = []
+    
+    # Appliquer seq_ohe à chaque séquence et aplatir le résultat
+    for seq in column:
+        ohe_result = seq_ohe(seq).flatten()  # Aplatir le tableau 2D
+        results.append(ohe_result)  # Ajouter le résultat à la liste
+    # Créer un DataFrame à partir de la liste de résultats
+    values_df = pd.DataFrame(results)
+    
+    return values_df
+
+def _freq(seq):
+    Residues = "ARNDCQEGHILKMFPSTWYV"
+    freq = np.zeros(len(Residues))  # Tableau pour stocker les fréquences
+
+    # Compter les occurrences de chaque résidu
+    for residue in seq:
+        if residue in Residues:
+            index = Residues.index(residue)
+            freq[index] += 1
+
+    # Calculer les fréquences relatives
+    freq_relative = freq / len(seq)  # Diviser par la longueur de la séquence
+    return freq_relative
+
+# Test de la fonction
+# test = _freq('TDPIADMLTAIRN')
+
+
+def freq_for_column(col):
+    results = []
+    for seq in col:
+        results.append(_freq(seq))
+    return pd.DataFrame(results)
+
+def midle(dssp):
+    for seq in dssp:
+        l = seq[len(seq)//2]
+        return l
+    
+def resample(df):
+    # Séparer les labels et les features
+    X, y = df.drop(columns='DSSP'), df['DSSP']
+
+    # Appliquer le resampling 
+    sm = SMOTE(random_state=42)
+    X_resampled, y_resampled = sm.fit_resample(X, y)
+
+    # Recréer le dataframe
+    resampled_df = pd.DataFrame(X_resampled, columns=X.columns)
+    resampled_df['DSSP'] = y_resampled
+
+    # Réinitialiser l'index
+    resampled_df.reset_index(drop=True, inplace=True)
+
+    return resampled_df
+
+
+
+def create_dataset(pwd, method = 'freq'):
+    """
+    Method = 'ohe' (onehote enconding) | 'freq' (frequence encoding)
+    """
+    
+    RES = []
+    DSSP = []
     for file in os.listdir(pwd):
-        filename = file.split('.')[0]
         try:
             file_data = read_files(os.path.join(pwd, file))
             if file_data is not None:  # Vérifie si les données du fichier ne sont pas None
-                data.append(file_data)  # Ajoute les données à la liste
-                filenames.append(filename)  # Ajoute le nom du fichier à la liste
+                for item in file_data['RES']:
+                    RES.append(item)  
+                for item in file_data['DSSP']:
+                    DSSP.append(item)  
+                
         except Exception as e:
             print(f"Erreur lors de la lecture du fichier {file}: {e}")
 
     # Convertit la liste de dictionnaires en DataFrame
-    dataset = pd.DataFrame(data, index=filenames)  # Utilise les noms de fichiers comme index
-    dataset = expand_column(dataset, 'RES')
-    return dataset
+    data = pd.DataFrame({
+        'DSSP': DSSP,
+        'RES': RES
+        })
+    
+    # Garder que les séquence composant une seule et unique structure 
+    data['DSSP'] = data['DSSP'].apply(midle)
+    
+    # DSSP OneHot Encoding
+    data['DSSP'] = data['DSSP'].apply(DSSP_ohe)
+    
+    if method == 'ohe':
+        # RES OneHot Encoding 
+        RES_encoded = RES_ohe(data['RES'])
+    else:
+        # RES frequence encoding 
+        RES_encoded = freq_for_column(data['RES'])
+    
+    # Reinitialisation des index
+    data = data.reset_index(drop=True)
+    RES_encoded = RES_encoded.reset_index(drop=True)
+    
+    df = pd.concat([data.drop(columns = 'RES'), RES_encoded], axis = 1).set_index(data['RES'])
+    return resample(df)
 
-
+df1 = create_dataset(pwd, 'ohe')
+df2 = create_dataset(pwd, 'freq')
