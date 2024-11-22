@@ -62,40 +62,6 @@ def DSSP_ohe(str_):
     else:
         return 2
 
-# def aa_ohe(aa):
-#     # Initialiser le dictionnaire pour l'encodage one-hot
-#     Residues = "ARNDCQEGHILKMFPSTWYV"
-#     residue_ohe = {aa: 0 for aa in Residues}
-#     # Remplir le dictionnaire en fonction de la séquence
-#     if aa in residue_ohe:
-#         residue_ohe[aa] = 1
-#     else:
-#         print(f"Amino acid '{aa}' not recognized and will be ignored.")
-#     # Retourner un DataFrame avec une seule ligne
-#     return list(residue_ohe.values())
-
-# #test = aa_ohe('A')
-
-# def seq_ohe(seq):
-#     arr = []
-#     for aa in seq:
-#         arr.append(aa_ohe(aa))
-#     return np.array(arr)
-
-# #test = seq_ohe('TDPIADMLTAIRN')    
-
-# def RES_ohe(column):
-#     # Créer une liste pour stocker les résultats
-#     results = []
-    
-#     # Appliquer seq_ohe à chaque séquence et aplatir le résultat
-#     for seq in column:
-#         ohe_result = seq_ohe(seq).flatten()  # Aplatir le tableau 2D
-#         results.append(ohe_result)  # Ajouter le résultat à la liste
-#     # Créer un DataFrame à partir de la liste de résultats
-#     values_df = pd.DataFrame(results)
-    
-#     return values_df
 
 def _freq(seq):
     Residues = "ARNDCQEGHILKMFPSTWYV"
@@ -112,7 +78,7 @@ def _freq(seq):
     return freq_relative
 
 # Test de la fonction
-test = _freq('TDPIADMLTAIRN')
+# test = _freq('TDPIADMLTAIRN')
 
 
 def freq_for_column(col):
@@ -171,10 +137,7 @@ def create_dataset(pwd):
     
     # DSSP OneHot Encoding
     data['DSSP'] = data['DSSP'].apply(DSSP_ohe)
-    
-    # RES OneHot Encoding 
-    ## RES_encoded = RES_ohe(data['RES'])
-    
+
     # RES frequence encoding 
     RES_encoded = freq_for_column(data['RES'])
     
