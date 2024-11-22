@@ -111,14 +111,20 @@ def midle(dssp):
     
 def resample(df):
     # Séparer les labels et les features
-    X, y = df.drop(columns = 'DSSP'), df['DSSP']
+    X, y = df.drop(columns='DSSP'), df['DSSP']
 
     # Appliquer le resampling 
     sm = SMOTE(random_state=42)
-    X, y = sm.fit_resample(X, y)
+    X_resampled, y_resampled = sm.fit_resample(X, y)
 
     # Recréer le dataframe
-    return pd.DataFrame(y, X)
+    resampled_df = pd.DataFrame(X_resampled, columns=X.columns)
+    resampled_df['DSSP'] = y_resampled
+
+    # Réinitialiser l'index
+    resampled_df.reset_index(drop=True, inplace=True)
+
+    return resampled_df
 
 
 def create_dataset(pwd):
