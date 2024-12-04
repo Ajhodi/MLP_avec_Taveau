@@ -10,7 +10,11 @@ import os
 import numpy as np
 import pandas as pd
 from imblearn.over_sampling import SMOTE
+from tqdm import tqdm
+import time
 
+
+# Testing parameters
 length = 13
 
 pwd = "513_distribute" 
@@ -69,12 +73,12 @@ def aa_ohe(aa):
     # Remplir le dictionnaire en fonction de la séquence
     if aa in residue_ohe:
         residue_ohe[aa] = 1
-    else:
-        print(f"Amino acid '{aa}' not recognized and will be ignored.")
+    # else:
+    #     print(f"Amino acid '{aa}' not recognized and will be ignored.")
     # Retourner un DataFrame avec une seule ligne
     return list(residue_ohe.values())
 
-#test = aa_ohe('A')
+# test = aa_ohe('X')
 
 def seq_ohe(seq):
     arr = []
@@ -89,7 +93,7 @@ def RES_ohe(column):
     results = []
     
     # Appliquer seq_ohe à chaque séquence et aplatir le résultat
-    for seq in column:
+    for seq in tqdm(column, desc="Processing files"):
         ohe_result = seq_ohe(seq).flatten()  # Aplatir le tableau 2D
         results.append(ohe_result)  # Ajouter le résultat à la liste
     # Créer un DataFrame à partir de la liste de résultats
@@ -117,7 +121,7 @@ def _freq(seq):
 
 def freq_for_column(col):
     results = []
-    for seq in col:
+    for seq in tqdm(col, desc="Processing files"):
         results.append(_freq(seq))
     return pd.DataFrame(results)
 
@@ -125,13 +129,18 @@ def midle(dssp):
     for seq in dssp:
         l = seq[len(seq)//2]
         return l
-    
+
 def resample(df):
     # Séparer les labels et les features
     X, y = df.drop(columns='DSSP'), df['DSSP']
 
     # Appliquer le resampling 
     sm = SMOTE(random_state=42)
+
+    # Afficher un message d'attente
+    print("Processing... Please wait.")
+    
+    # Effectuer le resampling
     X_resampled, y_resampled = sm.fit_resample(X, y)
 
     # Recréer le dataframe
@@ -141,18 +150,22 @@ def resample(df):
     # Réinitialiser l'index
     resampled_df.reset_index(drop=True, inplace=True)
 
+    print("Processing complete!")
     return resampled_df
 
 
-
-def create_dataset(pwd, method = 'freq'):
+def create_dataset(pwd, method = None):
     """
-    Method = 'ohe' (onehote enconding) | 'freq' (frequence encoding)
+    Method = 
+        ohe : (onehote enconding) 
+        freq : (frequence encoding)
+        None : (unmodified sequence)
     """
     
     RES = []
     DSSP = []
-    for file in os.listdir(pwd):
+    print("Precessing files ...")
+    for file in tqdm(os.listdir(pwd), desc="Processing files"):
         try:
             file_data = read_files(os.path.join(pwd, file))
             if file_data is not None:  # Vérifie si les données du fichier ne sont pas None
@@ -164,6 +177,7 @@ def create_dataset(pwd, method = 'freq'):
         except Exception as e:
             print(f"Erreur lors de la lecture du fichier {file}: {e}")
 
+    print("Encoding ...")    
     # Convertit la liste de dictionnaires en DataFrame
     data = pd.DataFrame({
         'DSSP': DSSP,
@@ -178,17 +192,28 @@ def create_dataset(pwd, method = 'freq'):
     
     if method == 'ohe':
         # RES OneHot Encoding 
+        print("OneHot Encoding ...")
         RES_encoded = RES_ohe(data['RES'])
-    else:
+    elif method == 'freq':
         # RES frequence encoding 
+        print("Frequences calculation ...")
         RES_encoded = freq_for_column(data['RES'])
+    else:
+        # return resample(data) # retourner la séquence non modifiée ## La fonction resample ne marche pas pour les tableaux de str
+        return data
     
     # Reinitialisation des index
     data = data.reset_index(drop=True)
     RES_encoded = RES_encoded.reset_index(drop=True)
     
     df = pd.concat([data.drop(columns = 'RES'), RES_encoded], axis = 1).set_index(data['RES'])
+    print("Resampling ...")
     return resample(df)
 
-df1 = create_dataset(pwd, 'ohe')
-df2 = create_dataset(pwd, 'freq')
+# # Test
+# df1 = create_dataset(pwd, 'ohe')
+# df2 = create_dataset(pwd, 'freq')
+# df3 = create_dataset(pwd, None)
+
+
+
