@@ -150,16 +150,19 @@ def resample(df):
     # Réinitialiser l'index
     resampled_df.reset_index(drop=True, inplace=True)
 
-    print("Processing complete!")
+    print("Resampling complete!")
     return resampled_df
 
 
-def create_dataset(pwd, method = None):
+def create_dataset(pwd, method = None, rsp = False):
     """
-    Method = 
+    method = 
         ohe : (onehote enconding) 
         freq : (frequence encoding)
         None : (unmodified sequence)
+    rsp = Respampling via SMOTE 
+        True : performe a resampling to balance classes 
+        False : classes distribution remains the same 
     """
     
     RES = []
@@ -200,19 +203,25 @@ def create_dataset(pwd, method = None):
         RES_encoded = freq_for_column(data['RES'])
     else:
         # return resample(data) # retourner la séquence non modifiée ## La fonction resample ne marche pas pour les tableaux de str
-        return data
+        # Reinitialisation des index
+        data = data.reset_index(drop=True)
+        return data # Retourne un df tel quel sans re
     
     # Reinitialisation des index
     data = data.reset_index(drop=True)
     RES_encoded = RES_encoded.reset_index(drop=True)
     
     df = pd.concat([data.drop(columns = 'RES'), RES_encoded], axis = 1).set_index(data['RES'])
-    print("Resampling ...")
-    return resample(df)
+        
+    if rsp == True:
+        print("Resampling ...")
+        return resample(df)
+    else:
+        return df
 
 # # Test
-# df1 = create_dataset(pwd, 'ohe')
-# df2 = create_dataset(pwd, 'freq')
+# df1 = create_dataset(pwd, 'ohe', False)
+# df2 = create_dataset(pwd, 'freq', True)
 # df3 = create_dataset(pwd, None)
 
 
