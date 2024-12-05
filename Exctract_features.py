@@ -20,8 +20,12 @@ length = 13
 pwd = "513_distribute" 
 
 def extract_first_(line, length, from_):
-    # Enlève les virgules et retourne les premiers caractères jusqu'à la longueur spécifiée
-    return line.replace(',', '')[from_ : from_ + length]
+    # Enlève les virgules, les retourns à la lignes et retourne les premiers caractères jusqu'à la longueur spécifiée
+    r = line.replace(",", "")[from_ : from_ + length]
+    if "\n" in r:
+        return r.replace("\n", "")
+    else:
+        return r
 
 def DSS_translate(str_):
     # Remplace 'H' et 'E' par elles-mêmes, toutes les autres lettres par 'C'
@@ -219,10 +223,15 @@ def create_dataset(pwd, method = None, rsp = False):
     else:
         return df
 
-# # Test
-# df1 = create_dataset(pwd, 'ohe', False)
-# df2 = create_dataset(pwd, 'freq', True)
+# # TEST ########################################################################
+
+# # Charger les data avec du onehot encoding
+df1 = create_dataset(pwd, 'ohe', False) # False pour ne pas faire de resampling
+# # Charger les data avec la fréquence d'aa
+# df2 = create_dataset(pwd, 'freq', False) # False pour ne pas faire de resampling
+# # Charger les data sans encodage
 # df3 = create_dataset(pwd, None)
 
-
+# # Combinener les df
+# combine_df = pd.concat([df1, df2], axis = 1)
 
