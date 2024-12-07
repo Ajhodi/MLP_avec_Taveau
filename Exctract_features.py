@@ -226,7 +226,7 @@ def create_dataset(pwd, method = None, rsp = False):
 # # TEST ########################################################################
 
 # # Charger les data avec du onehot encoding
-df1 = create_dataset(pwd, 'ohe', False) # False pour ne pas faire de resampling
+# df1 = create_dataset(pwd, 'ohe', False) # False pour ne pas faire de resampling
 # # Charger les data avec la fréquence d'aa
 # df2 = create_dataset(pwd, 'freq', False) # False pour ne pas faire de resampling
 # # Charger les data sans encodage
