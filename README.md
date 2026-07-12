@@ -101,22 +101,22 @@ We implemented our model in three different ways: with one-hot encoding, frequen
 
 As mentioned, one-hot encoding generates the largest amount of data for analysis, and our results showed an accuracy of 65.68%. As excpeted, our model learned very quickly; we achieved 60.18% accuracy after the first epoch and stopped after 3 epochs.
 
-![](images/plot_ohe.png)
-![](images/matrix_ohe.png)
+![](Imges/plot_ohe.png)
+![](Imges/matrix_ohe.png)
 
 #### Frequency endocing
 
 Even though the DataFrame is smaller, the learning time increases, resulting in a better accuracy of 80.31% after 30 epochs.
 
-![](images/plot_freq.png)
-![](images/matrix_freq.png)
+![](Imges/plot_freq.png)
+![](Imges/matrix_freq.png)
 
 #### Combine
 
 Combining the two datasets for training resulted in a larger DataFrame but a significant drop in accuracy compared to the previous methods. The model performed similarly to the one using one-hot encoding in the sense that it started at around 60% accuracy, but its learning curve varied dramatically throughout the training process. Ultimately, the model clearly overfitted, achieving an accuracy of only 64.10%.
 
-![](images/plot_bith.png)
-![](images/matrix_bith.png)
+![](Imges/plot_bith.png)
+![](Imges/matrix_bith.png)
 
 ### Discusssion and Conclusions
 
