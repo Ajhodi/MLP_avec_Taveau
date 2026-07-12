@@ -1,4 +1,4 @@
-# Multy layer perceptron (MLP) to predicting secondary structure of protein from amino acide sequences.
+# Multy layer perceptron (MLP) to predict secondary structure of protein from amino acide sequences.
 
 ## Résumé
 
